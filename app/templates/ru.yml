@@ -1,0 +1,23 @@
+start:
+  mt: |
+    🙋‍♀️ Приветственное сообщение!
+  lang: |
+    Choose your language (выберите язык):
+
+help: |
+  Подробное описание бота
+
+draw:
+  mt: |
+    Доступные кампании:
+    {% for campaign_name in campaigns %}
+    <b>{{ campaign_name }}:</b>
+      Всего заказанно: {{ campaigns[campaign_name].ordered_count }}
+      Отработано: {{ campaigns[campaign_name].done_count }}
+      Еще осталось: {{ campaigns[campaign_name].ordered_count - campaigns[campaign_name].done_count }}
+    {% endfor %}
+    <b>Всего еще доступно:</b> {{ total }}
+    Напишите start чтобы запустить рассылку!
+  start_draw_mt: Рассылка стартовала!
+  not_start_draw_mt: Рассылка отменена!
+  end_draw_mt: Рассылка закончена!
