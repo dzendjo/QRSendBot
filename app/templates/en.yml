@@ -1,11 +1,15 @@
 start:
   mt: |
-    Hi, man!
+    Hi, paste a link or some data to create QR code:
   lang: |
     Choose your language (выберите язык):
 
 help: |
-   Help text
+  @QRSendBot is designed to generate QR codes for links or free text.
+  
+  The bot is free, use with pleasure!
+  
+  Suggestions or ideas - @zhuanvong
 
 draw:
   mt: |
@@ -21,3 +25,19 @@ draw:
   start_draw_mt: Рассылка стартовала!
   not_start_draw_mt: Рассылка отменена!
   end_draw_mt: Рассылка закончена!
+
+errors:
+  unknown_command: 👻 Do not know that command
+  none_link_in_message: 👻 There is no url in the message
+  too_big_data: 👻 Can not create QR code, to mane data...
+
+process:
+  with_sign_ib: |
+    {% if is_active %}🔘{% else %}⚪️{% endif %} With sign
+  without_sign_ib: |
+    {% if is_active %}🔘{% else %}⚪️{% endif %} Without sign
+  save_ib: 💾 Save
+  final_caption: |
+    {% if url %}🔗 <a href="{{ url }}">Открыть QR код</a>{% endif %}
+    
+    💁‍♀️ QR code created with @QRSendBot

@@ -1,11 +1,16 @@
 import datetime
 
-import data
+# import data
 from models import User, db
 import asyncio
 from urllib.parse import urlparse, parse_qs
 import re
 import json
+import qrcode
+from PIL import ImageDraw, ImageFont, Image, ImageOps
+from io import BytesIO
+from string import ascii_letters
+import textwrap
 
 
 async def register_user(rg_user):
@@ -103,6 +108,49 @@ async def get_model_keys(model):
     return list([str(item) for item in model.schema.fields])
 
 
+def create_qr_image(caption, without_caption=False):
+    try:
+        qr_img = qrcode.make(caption)
+    except qrcode.exceptions.DataOverflowError:
+        return None
+
+    if without_caption:
+        return qr_img
+
+    # Determine font
+    font = ImageFont.truetype("UbuntuMono-Regular.ttf", 16)
+
+    # Determine count of letters for current img size
+    avg_char_width = sum(font.getsize(char)[0] for char in ascii_letters) / len(ascii_letters)
+    max_char_count = int(((qr_img.size[0] * .95) - 80) / avg_char_width)
+
+    # Create a wrapped text object using scaled character count
+    lines = textwrap.wrap(caption, width=max_char_count)
+    optimized_caption = '\n'.join(lines)
+
+    # Create base text image
+    text_img = Image.new('RGB', (qr_img.size[0], 16), color='white')
+    draw = ImageDraw.Draw(text_img)
+
+    # Define text block sizes
+    text_block_width, text_block_height = draw.multiline_textsize(optimized_caption, font=font)
+
+    # Create text image
+    text_img = Image.new('RGB', (qr_img.size[0], text_block_height + 40), color='white')
+    draw = ImageDraw.Draw(text_img)
+    draw.multiline_text(((qr_img.size[0] - text_block_width) / 2, 20), optimized_caption, font=font, fill=(0, 0, 0))
+    cur_x = 0
+    cur_y = 0
+    for x in range(cur_x, qr_img.size[0], 8):
+        draw.line([(x, cur_y), (x + 4, cur_y)], fill=(0, 0, 0), width=6)
+
+    # Unite images to final image
+    main_image = Image.new('RGB', (qr_img.size[0], qr_img.size[1] + text_img.size[1]), (250, 250, 250))
+    main_image.paste(qr_img, (0, 0))
+    main_image.paste(text_img, (0, qr_img.size[1]))
+    return main_image
+
+
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
+    create_qr_by_url('https://www.youtube.com/watch?v=r_pwpQeBU7A')
 

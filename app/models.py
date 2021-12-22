@@ -7,8 +7,22 @@ from umongo.frameworks import MotorAsyncIOInstance
 
 
 db_host = os.environ.get('DB_HOST', 'localhost')
-db = AsyncIOMotorClient(f'mongodb://{db_host}:27017')['BOT_TEMPLATE']
+db = AsyncIOMotorClient(f'mongodb://{db_host}:27017')['QRSendBot']
 instance = MotorAsyncIOInstance(db)
+
+
+@instance.register
+class QRCode(Document):
+    class Meta:
+        collection_name = 'qrcodes'
+        indexes = []
+
+    date = fields.DateTimeField(default=datetime.datetime.now())
+    data = fields.StrField(required=True)
+    user_id = fields.IntField(allow_none=True)
+    qr_with_caption_id = fields.StrField(allow_none=True)
+    qr_without_caption_id = fields.StrField(allow_none=True)
+    is_active_with_sign = fields.BooleanField(default=True)
 
 
 @instance.register

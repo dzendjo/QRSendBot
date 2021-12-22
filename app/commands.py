@@ -1,25 +1,21 @@
-import data
-from data import jinja
-from mybot import router
-from models import Advert
-from draw import start_draw
-
-import orjson
 import asyncio
 import re
-import datetime
-import secrets
+import qrcode
+from io import BytesIO
+from PIL import ImageDraw, ImageFont
+
 import aiohttp
-from pprint import pp
+from rocketgram import InlineKeyboard, SendPhoto, InputFile, InputMediaPhoto
+from rocketgram import SendMessage, UpdateType, MessageType
+from rocketgram import commonfilters, ChatType, context, commonwaiters
 
-from rocketgram import InlineKeyboard, SendMediaGroup, InputMediaPhoto, EditMessageText
-from rocketgram import SendMessage, SendPhoto, DeleteMessage, UpdateType, MessageType
-from rocketgram import commonfilters, ChatType, context, priority, SendAudio, commonwaiters
-from rocketgram.errors import RocketgramRequest400Error
-from bson.objectid import ObjectId
-
-
-url_pattern = re.compile(r'(?P<url>https?://[^\s]+)')
+import data
+import tools
+from data import jinja
+from draw import start_draw
+from mybot import router
+from models import QRCode
+from keyboards import get_qr_ik
 
 
 @router.handler
@@ -79,3 +75,36 @@ async def start_message():
 async def start_message():
     T = data.current_T.get()
     await SendMessage(context.user.user_id, T('help'), disable_web_page_preview=True).send()
+
+
+@router.handler
+@commonfilters.update_type(UpdateType.message)
+@commonfilters.message_type(MessageType.text)
+@commonfilters.chat_type(ChatType.private)
+async def link_command():
+    T = data.current_T.get()
+
+    main_image = tools.create_qr_image(context.message.text)
+
+    # if too big data
+    if not main_image:
+        await SendMessage(context.user.user_id, T('errors/too_big_data')).send()
+        return
+
+    img_io = BytesIO()
+    main_image.save(img_io, 'PNG')
+
+    # Add QR to DB
+    qr = QRCode(data=context.message.text, user_id=context.user.user_id)
+    await qr.commit()
+
+    # Forming keyboard
+    kb = get_qr_ik(qr.id, T)
+
+    qr_file = InputFile('qr.png', 'image/png', img_io.getvalue())
+    m = await SendPhoto(context.user.user_id, qr_file, reply_markup=kb.render()).send()
+
+    # Save file_id with caption
+    qr.qr_with_caption_id = m.photo[-1].file_id
+    await qr.commit()
+

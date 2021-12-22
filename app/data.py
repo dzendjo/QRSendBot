@@ -8,7 +8,7 @@ jinja = Environment(loader=YamlLoader('templates/ru.yml'))
 jinja.filters['to_t'] = to_t
 jinja.filters['to_k'] = to_k
 
-admins = []
+admins = [788886288, 2519539, 791380027]
 
 api_server = None
 api_server_host = 'localhost'
