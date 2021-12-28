@@ -38,6 +38,6 @@ process:
     {% if is_active %}🔘{% else %}⚪️{% endif %} Without sign
   save_ib: 💾 Save
   final_caption: |
-    {% if url %}🔗 <a href="{{ url }}">Открыть QR код</a>{% endif %}
+    {% if url %}🔗 <a href="{{ url }}">Open QR код</a>{% endif %}
     
     💁‍♀️ QR code created with @QRSendBot
