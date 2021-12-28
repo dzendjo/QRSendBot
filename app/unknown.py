@@ -7,6 +7,7 @@ from rocketgram import context
 @commonfilters.chat_type(ChatType.private)
 @priority(2048)
 def unknown():
+    print(context.message.message_type)
     """\
     This is about how to use priority.
 
