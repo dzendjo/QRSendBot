@@ -8,6 +8,7 @@ from rocketgram import context
 @priority(2048)
 def unknown():
     print(context.message.message_type)
+    print(context.message.video)
     """\
     This is about how to use priority.
 
