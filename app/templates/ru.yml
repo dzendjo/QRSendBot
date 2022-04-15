@@ -47,3 +47,18 @@ process:
     {% if url %}🔗 <a href="{{ url }}">Открыть QR код</a>{% endif %}
     
     💁‍♀️ Код создан при помощи @QRSendBot
+
+rec:
+  wifi: |
+    🌐 Сеть: <b>{{ net_name }}</b>
+    {% if password %}🔑 Пароль: <b>{{ password }}</b>{% endif %}
+    {% if encryption %}🔐 Аутентификация: <b>{{ encryption }}</b>{% endif %}
+  tel: |
+    ☎️ Номер: <b>{{ tel }}</b>
+  geo: |
+    🛰 Координаты:
+    
+    latitude: <b>{{ latitude }}</b>
+    longitude: <b>{{ longitude }}</b>
+  vcard: |
+    

@@ -7,7 +7,7 @@ from pyzbar.pyzbar import decode
 
 import aiohttp
 from rocketgram import InlineKeyboard, SendPhoto, InputFile, InputMediaPhoto
-from rocketgram import SendMessage, UpdateType, MessageType, GetFile
+from rocketgram import SendMessage, UpdateType, MessageType, GetFile, SendLocation
 from rocketgram import commonfilters, ChatType, context, commonwaiters
 
 import data
@@ -141,9 +141,33 @@ async def link_command():
         await SendMessage(context.user.user_id, T('errors/cannot_decode_qr')).send()
         return
 
-    if decode_data[:5] == 'WIFI:':
+    if decode_data[:5].lower() == 'wifi:':
+        items = decode_data[5:].split(';')
+        net_name, password, encryption = '', '', ''
+        for item in items:
+            if item:
+                if item[0] == 'S':
+                    net_name = item.split(':')[1]
+                elif item[0] == 'T':
+                    encryption = item.split(':')[1]
+                elif item[0] == 'P':
+                    password = item.split(':')[1]
+        await SendMessage(context.user.user_id,
+                          T('rec/wifi', net_name=net_name, encryption=encryption, password=password)).send()
+    elif decode_data[:4].lower() == 'tel:':
+        # tel: +78005553535
+        tel = decode_data.split(':')[1].strip()
+        await SendMessage(context.user.user_id, T('rec/tel', tel=tel)).send()
+    elif decode_data[:4].lower() == 'geo:':
+        # geo: 40.71872, -73.98905
+        items = decode_data[4:].split(',')
+        latitude = items[0].strip()
+        longitude = items[1].strip()
+        await SendLocation(context.user.user_id, latitude=latitude, longitude=longitude).send()
+        await SendMessage(context.user.user_id, T('rec/geo', latitude=latitude, longitude=longitude)).send()
 
-    await SendMessage(context.user.user_id, decode_data).send()
+    else:
+        await SendMessage(context.user.user_id, decode_data).send()
 
 
 
