@@ -141,6 +141,8 @@ async def link_command():
         await SendMessage(context.user.user_id, T('errors/cannot_decode_qr')).send()
         return
 
+    if decode_data[:5] == 'WIFI:':
+
     await SendMessage(context.user.user_id, decode_data).send()
 
 

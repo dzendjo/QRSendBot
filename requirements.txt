@@ -6,7 +6,7 @@ attrs==21.2.0
 charset-normalizer==2.0.9
 frozenlist==1.2.0
 idna==3.3
-j2tools==2019.3
+j2tools
 Jinja2==3.0.3
 MarkupSafe==2.0.1
 marshmallow==3.14.1
