@@ -2,11 +2,12 @@ import asyncio
 import re
 import qrcode
 from io import BytesIO
-from PIL import ImageDraw, ImageFont
+from PIL import ImageDraw, ImageFont, Image
+from pyzbar.pyzbar import decode
 
 import aiohttp
 from rocketgram import InlineKeyboard, SendPhoto, InputFile, InputMediaPhoto
-from rocketgram import SendMessage, UpdateType, MessageType
+from rocketgram import SendMessage, UpdateType, MessageType, GetFile
 from rocketgram import commonfilters, ChatType, context, commonwaiters
 
 import data
@@ -107,4 +108,43 @@ async def link_command():
     # Save file_id with caption
     qr.qr_with_caption_id = m.photo[-1].file_id
     await qr.commit()
+
+
+@router.handler
+@commonfilters.update_type(UpdateType.message)
+@commonfilters.message_type(MessageType.document, MessageType.photo)
+@commonfilters.chat_type(ChatType.private)
+async def link_command():
+    T = data.current_T.get()
+
+    if context.message.photo:
+        file_id = context.message.photo[-1].file_id
+    elif context.message.document.mime_type in ['image/jpeg', 'image/png', 'image/jpg']:
+        file_id = context.message.document.file_id
+    else:
+        await SendMessage(context.user.user_id, T('errors/not_correct_document')).send()
+        return
+
+    response = await GetFile(file_id).send()
+    api_file_url = 'https://api.telegram.org/file/bot{}/'.format(context.bot.token)
+    url = api_file_url + response.file_path
+
+    session: aiohttp.ClientSession = context.bot.connector._session
+
+    response = await session.get(url)
+    file_data = await response.read()
+
+    image = Image.open(BytesIO(file_data))
+    try:
+        decode_data = decode(image)[0].data.decode()
+    except IndexError as e:
+        await SendMessage(context.user.user_id, T('errors/cannot_decode_qr')).send()
+        return
+
+    await SendMessage(context.user.user_id, decode_data).send()
+
+
+
+
+
 

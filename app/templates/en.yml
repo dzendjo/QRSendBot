@@ -5,9 +5,13 @@ start:
     Choose your language (выберите язык):
 
 help: |
-  @QRSendBot is designed to generate QR codes for links or free text.
+  @QRSendBot can:
   
-  The bot is free, use with pleasure!
+    1. <b>Create QR codes for links or free text.</b> To do this, simply send the bot a link or text.
+  
+    2. <b>Recognize data in QR pictures.</b> Just send a picture to the bot and receive data from this code in response.
+  
+  The bot is free, use it to your health!
   
   Suggestions or ideas - @zhuanvong
 
@@ -30,6 +34,8 @@ errors:
   unknown_command: 👻 Do not know that command
   none_link_in_message: 👻 There is no url in the message
   too_big_data: 👻 Can not create QR code, to mane data...
+  not_correct_document: 👻 Can not find QR code at your file
+  cannot_decode_qr: 👻 Can not recognize QR code at the image :-(
 
 process:
   with_sign_ib: |
