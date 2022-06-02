@@ -1,6 +1,7 @@
 import datetime
+import os
 
-# import data
+import data
 from models import User, db
 import asyncio
 from urllib.parse import urlparse, parse_qs
@@ -9,8 +10,12 @@ import json
 import qrcode
 from PIL import ImageDraw, ImageFont, Image, ImageOps
 from io import BytesIO
+import aiohttp
+from rocketgram import SendMessage, SendPhoto, SendAnimation, SendVideo
+from rocketgram import InlineKeyboard, Bot
 from string import ascii_letters
 import textwrap
+from rocketgram.errors import RocketgramRequest400Error
 
 
 async def register_user(rg_user):
@@ -25,8 +30,6 @@ async def register_user(rg_user):
     user.last_name = rg_user.last_name
     user.language_code = rg_user.language_code
     user.language = 'ru' if rg_user.language_code == 'ru' else 'en'
-
-    # print(user)
 
     await user.commit()
     return user
@@ -151,6 +154,68 @@ def create_qr_image(caption, without_caption=False):
     return main_image
 
 
+async def send_advert_message(bot: Bot, user_id: int, advert: dict):
+    kb = InlineKeyboard()
+    for button in advert['buttons']:
+        kb.url(button['text'], button['url']).row()
+
+    if advert['media']:
+        if advert['media']['type'] == 'video':
+            send_method = SendVideo
+        elif advert['media']['type'] == 'animation':
+            send_method = SendAnimation
+        else:
+            send_method = SendPhoto
+            try:
+                await bot.send(send_method(user_id,
+                                           advert['media']['file_id'],
+                                           caption=advert['text'],
+                                           reply_markup=kb.render()))
+            except Exception as e:
+                print(e)
+                return False
+    else:
+        try:
+            await bot.send(SendMessage(user_id,
+                                       advert['text'],
+                                       reply_markup=kb.render(),
+                                       disable_web_page_preview=not advert['is_preview_enable']))
+        except Exception as e:
+            print(e)
+            return False
+    return True
+
+
+async def send_advert_action_message(bot: Bot, user_id: int):
+    session: aiohttp.ClientSession = bot.connector._session
+    headers = {'token': data.ad_token}
+    async with session.post(data.api_url_get_advert, headers=headers, json={'type': 'action'}) as request:
+        resp_json = await request.json()
+        if resp_json['result'] and resp_json['advert']:
+            await send_advert_message(bot, user_id, resp_json['advert'])
+
+
+async def send_advert_draw_message(bot: Bot, user_ids: list, count=100):
+    session: aiohttp.ClientSession = bot.connector._session
+    headers = {'token': data.ad_token}
+    body = {'type': 'draw', 'count': count}
+    results = {
+        'success': [],
+        'fail': []
+    }
+    async with session.post(data.api_url_get_advert, headers=headers, json=body) as request:
+        resp_json = await request.json()
+        if resp_json['result'] and resp_json['advert']:
+            for user_id in user_ids:
+                result = await send_advert_message(bot, user_id, resp_json['advert'])
+                if result:
+                    results['success'].append(user_id)
+                else:
+                    results['fail'].append(user_id)
+                await asyncio.sleep(0.1)
+    return results
+
+
 if __name__ == '__main__':
-    create_qr_by_url('https://www.youtube.com/watch?v=r_pwpQeBU7A')
+    pass
 

@@ -4,11 +4,13 @@ import qrcode
 from io import BytesIO
 from PIL import ImageDraw, ImageFont, Image
 from pyzbar.pyzbar import decode
+import regex
 
 import aiohttp
-from rocketgram import InlineKeyboard, SendPhoto, InputFile, InputMediaPhoto
+from rocketgram import InlineKeyboard, SendPhoto, InputFile, SendVideo, SendAnimation
 from rocketgram import SendMessage, UpdateType, MessageType, GetFile, SendLocation
-from rocketgram import commonfilters, ChatType, context, commonwaiters
+from rocketgram import commonfilters, ChatType, context, commonwaiters, Bot
+
 
 import data
 import tools
@@ -23,37 +25,40 @@ from keyboards import get_qr_ik
 @commonfilters.chat_type(ChatType.private)
 @commonfilters.command('/draw')
 async def start_message():
-    if context.user.user_id not in data.admins:
+    if context.user.id not in data.admins:
         return
 
     T = data.current_T.get()
+    available_campaigns = {}
 
     async with aiohttp.ClientSession() as session:
-        body = {"bot_hash": data.ad_hash, "type": "draw"}
-        available_campaigns = {}
-        async with session.post(data.api_url_available_campaigns, json=body) as resp:
+        headers = {'token': data.ad_token}
+
+        async with session.post(data.api_url_available_campaigns, headers=headers) as resp:
             resp_json = await resp.json()
             if resp_json['result']:
-                available_campaigns = resp_json['available-campaigns']
+                available_campaigns = resp_json['draw']
             else:
-                await SendMessage(context.user.user_id, resp_json['error']).send()
+                await SendMessage(context.user.id, resp_json['error']).send()
                 return
 
-    print(available_campaigns)
-    total = 0
-    for campaign_name, item in available_campaigns.items():
-        total += item['ordered_count'] - item['done_count']
-    mt = T('draw/mt', campaigns=available_campaigns, total=total)
-    await SendMessage(context.user.user_id, mt).send()
+    if not available_campaigns:
+        await SendMessage(context.user.id, T('draw/no_campaigns_mt')).send()
+        return
+
+    mt = T('draw/mt', campaigns=available_campaigns)
+    await SendMessage(context.user.id, mt).send()
 
     yield commonwaiters.next_message()
 
-    if context.message.text == 'start':
+    if context.message.text.lower() == 'start':
         # Create task for draw
-        asyncio.create_task(start_draw(context.user.user_id, list(available_campaigns.keys())[0]))
-        await SendMessage(context.user.user_id, T('draw/start_draw_mt')).send()
+        raw_campaign_name = '-'.join(available_campaigns.keys())
+        campaign_name = regex.sub(r'\P{posix_alnum}+', '-', raw_campaign_name).strip('-')
+        asyncio.create_task(start_draw(context.bot, context.user.id, campaign_name))
+        await SendMessage(context.user.id, T('draw/start_draw_mt')).send()
     else:
-        await SendMessage(context.user.user_id, T('draw/not_start_draw_mt')).send()
+        await SendMessage(context.user.id, T('draw/not_start_draw_mt')).send()
 
 
 @router.handler
@@ -67,7 +72,7 @@ async def start_message():
     kb.callback('🇺🇸 English', 'set_lang en')
     kb.arrange_simple(2)
 
-    await SendMessage(context.user.user_id, mt, reply_markup=kb.render()).send()
+    await SendMessage(context.user.id, mt, reply_markup=kb.render()).send()
 
 
 @router.handler
@@ -75,7 +80,7 @@ async def start_message():
 @commonfilters.command('/help')
 async def start_message():
     T = data.current_T.get()
-    await SendMessage(context.user.user_id, T('help'), disable_web_page_preview=True).send()
+    await SendMessage(context.user.id, T('help'), disable_web_page_preview=True).send()
 
 
 @router.handler
@@ -89,21 +94,21 @@ async def link_command():
 
     # if too big data
     if not main_image:
-        await SendMessage(context.user.user_id, T('errors/too_big_data')).send()
+        await SendMessage(context.user.id, T('errors/too_big_data')).send()
         return
 
     img_io = BytesIO()
     main_image.save(img_io, 'PNG')
 
     # Add QR to DB
-    qr = QRCode(data=context.message.text, user_id=context.user.user_id)
+    qr = QRCode(data=context.message.text, user_id=context.user.id)
     await qr.commit()
 
     # Forming keyboard
     kb = get_qr_ik(qr.id, T)
 
     qr_file = InputFile('qr.png', 'image/png', img_io.getvalue())
-    m = await SendPhoto(context.user.user_id, qr_file, reply_markup=kb.render()).send()
+    m = await SendPhoto(context.user.id, qr_file, reply_markup=kb.render()).send()
 
     # Save file_id with caption
     qr.qr_with_caption_id = m.photo[-1].file_id
@@ -122,7 +127,7 @@ async def link_command():
     elif context.message.document.mime_type in ['image/jpeg', 'image/png', 'image/jpg']:
         file_id = context.message.document.file_id
     else:
-        await SendMessage(context.user.user_id, T('errors/not_correct_document')).send()
+        await SendMessage(context.user.id, T('errors/not_correct_document')).send()
         return
 
     response = await GetFile(file_id).send()
@@ -138,7 +143,7 @@ async def link_command():
     try:
         decode_data = decode(image)[0].data.decode()
     except IndexError as e:
-        await SendMessage(context.user.user_id, T('errors/cannot_decode_qr')).send()
+        await SendMessage(context.user.id, T('errors/cannot_decode_qr')).send()
         return
 
     if decode_data[:5].lower() == 'wifi:':
@@ -152,25 +157,22 @@ async def link_command():
                     encryption = item.split(':')[1]
                 elif item[0] == 'P':
                     password = item.split(':')[1]
-        await SendMessage(context.user.user_id,
+        await SendMessage(context.user.id,
                           T('rec/wifi', net_name=net_name, encryption=encryption, password=password)).send()
     elif decode_data[:4].lower() == 'tel:':
         # tel: +78005553535
         tel = decode_data.split(':')[1].strip()
-        await SendMessage(context.user.user_id, T('rec/tel', tel=tel)).send()
+        await SendMessage(context.user.id, T('rec/tel', tel=tel)).send()
     elif decode_data[:4].lower() == 'geo:':
         # geo: 40.71872, -73.98905
         items = decode_data[4:].split(',')
         latitude = items[0].strip()
         longitude = items[1].strip()
-        await SendLocation(context.user.user_id, latitude=latitude, longitude=longitude).send()
-        await SendMessage(context.user.user_id, T('rec/geo', latitude=latitude, longitude=longitude)).send()
+        await SendLocation(context.user.id, latitude=latitude, longitude=longitude).send()
+        await SendMessage(context.user.id, T('rec/geo', latitude=latitude, longitude=longitude)).send()
 
     else:
-        await SendMessage(context.user.user_id, decode_data).send()
+        await SendMessage(context.user.id, decode_data).send()
 
-
-
-
-
-
+    # Send Advert
+    await tools.send_advert_action_message(context.bot, context.user.id)

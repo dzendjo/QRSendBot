@@ -1,62 +1,14 @@
 from rocketgram import SendMessage, SendVideo, SendAnimation, SendPhoto, SendDocument
-from rocketgram import InlineKeyboard
+from rocketgram import InlineKeyboard, Bot
 import data
 import aiohttp, asyncio
 from models import Advert, User
 from itertools import chain
 from copy import deepcopy
+import tools
 
 
-async def get_advert(advert_type):
-    # Get advert
-    try:
-        request_json = {
-            'bot_hash': data.ad_hash,
-            'type': advert_type
-        }
-        advert_dict = {}
-        async with aiohttp.ClientSession() as session:
-            async with session.post(data.api_url_get_advert, json=request_json) as resp:
-                resp_json = await resp.json()
-                if resp_json['result']:
-                    advert_dict = resp_json['advert']
-
-        return advert_dict
-    except Exception as e:
-        print(e)
-        return {}
-
-
-async def send_advert_to_user(user_id, advert_dict):
-    kb = InlineKeyboard()
-    if 'buttons' in advert_dict and advert_dict['buttons']:
-        for btn_item in advert_dict['buttons']:
-            kb.url(btn_item['text'], btn_item['url']).row()
-
-    try:
-        if 'media' in advert_dict and 'file_id' in advert_dict['media']:
-            if advert_dict['media']['type'] == 'photo':
-                await data.bot.send(SendPhoto(user_id, advert_dict['media']['file_id'],
-                                              caption=advert_dict['text'], reply_markup=kb.render()))
-            elif advert_dict['media']['type'] == 'video':
-                await data.bot.send(SendVideo(user_id, advert_dict['media']['file_id'],
-                                              caption=advert_dict['text'], reply_markup=kb.render()))
-            elif advert_dict['media']['type'] == 'animation':
-                await data.bot.send(SendAnimation(user_id, advert_dict['media']['file_id'],
-                                                  caption=advert_dict['text'], reply_markup=kb.render()))
-            else:
-                await data.bot.send(SendDocument(user_id, advert_dict['media']['file_id'],
-                                                 caption=advert_dict['text'], reply_markup=kb.render()))
-        else:
-            await data.bot.send(SendMessage(user_id, advert_dict['text'],
-                                            disable_web_page_preview=not advert_dict['is_preview_enable']))
-        return True
-    except Exception as e:
-        print(e)
-        return False
-
-
-async def start_draw(admin_user_id, draw_name):
+async def start_draw(bot: Bot, admin_user_id: int, draw_name: str):
     # Get users for draw
     draw = await Advert.find_one({'name': draw_name})
     if not draw:
@@ -69,36 +21,28 @@ async def start_draw(admin_user_id, draw_name):
 
     users_for_draw = all_users_set.difference(done_users_set)
 
-    advert_dict = await get_advert('draw')
-    if not advert_dict:
-        await data.bot.send(SendMessage(admin_user_id, 'Не могу ополучить рекламное сообщение через API'))
-        return
+    def slice_list(source_list: list, slice_count: int):
+        result_list = []
+        for i in range(1, len(source_list) + 1):
+            if i % slice_count == 0:
+                result_list.append(source_list[i - slice_count:i])
+        ostatok = len(result_list) * slice_count
+        if source_list[ostatok:]:
+            result_list.append(source_list[ostatok:])
+        return result_list
 
-    print(advert_dict)
-    count = 0
-    done_users = []
-    for _ in range(len(users_for_draw)):
-        count += 1
-        user_id = users_for_draw.pop()
-        send_result = await send_advert_to_user(user_id, advert_dict)
-        done_users.append(user_id)
-        if not send_result:
+    sliced_users = slice_list(list(users_for_draw), 100)
+
+    for user_group in sliced_users:
+        results = await tools.send_advert_draw_message(bot, user_group)
+        draw.done_users = chain(draw.done_users, user_group)
+        await draw.commit()
+
+        for user_id in results['fail']:
             user = await User.find_one(user_id)
-            user.is_active = False
-            await user.commit()
-
-        if count == 100:
-            draw.done_users = chain(draw.done_users, done_users)
-            await draw.commit()
-            old_ad_dict = deepcopy(advert_dict)
-            advert_dict = await get_advert('draw')
-            if not advert_dict:
-                await data.bot.send(SendMessage(admin_user_id, 'Не могу ополучить рекламное сообщение через API'))
-                advert_dict = old_ad_dict
-            done_users = []
-            count = 0
-        else:
-            await asyncio.sleep(0.1)
+            if user:
+                user.is_active = False
+                await user.commit()
 
     # Send message to admin about and of the draw
     await data.bot.send(SendMessage(admin_user_id, 'Рассылка закончена!'))

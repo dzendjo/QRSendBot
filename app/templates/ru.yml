@@ -16,16 +16,22 @@ help: |
   Предложения или идеи - @zhuanvong
 
 draw:
+  no_campaigns_mt: |
+    🤷‍♂️ Для этого бота нет заказанных кампаний для рассылки
   mt: |
-    Доступные кампании:
+    💁‍♀️ Доступные кампании:
     {% for campaign_name in campaigns %}
     <b>{{ campaign_name }}:</b>
-      Всего заказанно: {{ campaigns[campaign_name].ordered_count }}
-      Отработано: {{ campaigns[campaign_name].done_count }}
-      Еще осталось: {{ campaigns[campaign_name].ordered_count - campaigns[campaign_name].done_count }}
-    {% endfor %}
-    <b>Всего еще доступно:</b> {{ total }}
-    Напишите start чтобы запустить рассылку!
+      👀 <i>Заказано показов:</i>: {{ campaigns[campaign_name].ordered_count }}
+      💸 <i>Цена 1000 показов:</i>: {{ campaigns[campaign_name].cpm }}р
+      
+      <u>Объявления:</u>
+      {% for advert in campaigns[campaign_name].adverts %}
+        <i>{% if advert.media %}🌠{% endif %}{{ advert.text|escape|truncate(100, True) }}{% for button in advert.buttons %}▶️{% endfor %}</i>
+        <b>Уже {{ advert.done_count }} показов</b>
+      {% endfor %}{% endfor %}
+    
+    💁‍♀️ Напишите start чтобы запустить рассылку!
   start_draw_mt: Рассылка стартовала!
   not_start_draw_mt: Рассылка отменена!
   end_draw_mt: Рассылка закончена!

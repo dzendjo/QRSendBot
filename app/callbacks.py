@@ -13,7 +13,6 @@ from rocketgram.errors import RocketgramRequest400Error
 from pprint import pp
 import orjson
 import datetime
-import asyncio
 from io import BytesIO
 import re
 
@@ -25,24 +24,24 @@ url_pattern = re.compile(r'(?P<url>(mailto:|https?:\/\/)(www\.)?[-a-zA-Z0-9@:%._
 @commonfilters.chat_type(ChatType.private)
 @commonfilters.callback('set_lang')
 async def download_link():
-    await AnswerCallbackQuery(context.update.callback_query.query_id).send()
+    await AnswerCallbackQuery(context.update.callback_query.id).send()
 
     lang = context.update.callback_query.data.split()[-1]
-    user = await User.find_one(context.user.user_id)
+    user = await User.find_one(context.user.id)
 
     user.language = lang
     await user.commit()
 
     T = data.get_t(user.language)
     data.current_T.set(T)
-    await SendMessage(context.user.user_id, T('start/mt')).send()
+    await SendMessage(context.user.id, T('start/mt')).send()
 
 
 @router.handler
 @commonfilters.chat_type(ChatType.private)
 @commonfilters.callback('go_with_sign')
 async def download_link():
-    await AnswerCallbackQuery(context.update.callback_query.query_id).send()
+    await AnswerCallbackQuery(context.update.callback_query.id).send()
     _, qr_id = context.update.callback_query.data.split()
     user = data.current_user.get()
     T = data.get_t(user.language)
@@ -55,7 +54,7 @@ async def download_link():
 
     try:
         await EditMessageMedia(InputMediaPhoto(qr.qr_with_caption_id),
-                               context.user.user_id,
+                               context.user.id,
                                context.message.message_id,
                                reply_markup=kb.render()).send()
     except RocketgramRequest400Error as e:
@@ -66,7 +65,7 @@ async def download_link():
 @commonfilters.chat_type(ChatType.private)
 @commonfilters.callback('go_without_sign')
 async def download_link():
-    await AnswerCallbackQuery(context.update.callback_query.query_id).send()
+    await AnswerCallbackQuery(context.update.callback_query.id).send()
     _, qr_id = context.update.callback_query.data.split()
     user = data.current_user.get()
     T = data.get_t(user.language)
@@ -85,7 +84,7 @@ async def download_link():
         qr_file = InputFile('qr.png', 'image/png', img_io.getvalue())
 
         m = await EditMessageMedia(InputMediaPhoto(qr_file),
-                                   context.user.user_id,
+                                   context.user.id,
                                    context.message.message_id,
                                    reply_markup=kb.render()).send()
 
@@ -95,7 +94,7 @@ async def download_link():
     else:
         try:
             await EditMessageMedia(InputMediaPhoto(qr.qr_without_caption_id),
-                                   context.user.user_id,
+                                   context.user.id,
                                    context.message.message_id,
                                    reply_markup=kb.render()).send()
         except RocketgramRequest400Error as e:
@@ -106,7 +105,7 @@ async def download_link():
 @commonfilters.chat_type(ChatType.private)
 @commonfilters.callback('save')
 async def download_link():
-    await AnswerCallbackQuery(context.update.callback_query.query_id).send()
+    await AnswerCallbackQuery(context.update.callback_query.id).send()
     _, qr_id = context.update.callback_query.data.split()
     user = data.current_user.get()
     T = data.get_t(user.language)
@@ -126,8 +125,12 @@ async def download_link():
     qr_file_id = qr.qr_with_caption_id if qr.is_active_with_sign else qr.qr_without_caption_id
 
     await EditMessageMedia(InputMediaPhoto(qr_file_id, caption=caption, parse_mode=ParseModeType.html),
-                           context.user.user_id,
+                           context.user.id,
                            context.message.message_id,
                            reply_markup=InlineKeyboard()).send()
 
     await qr.remove()
+
+    # Send Advert
+    await tools.send_advert_action_message(context.bot, context.user.id)
+

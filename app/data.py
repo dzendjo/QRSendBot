@@ -26,6 +26,6 @@ get_t = None
 
 current_user = ContextVar('current_user')
 
-ad_hash = '99a1f83b7f06bfbda437b74ab9381887'
-api_url_available_campaigns = 'https://adbotapi.fastbots.net/available-campaigns'
-api_url_get_advert = 'https://adbotapi.fastbots.net/get-advert'
+ad_token = 'cc71c7d77fd766782e0025a6186756ec'
+api_url_available_campaigns = 'https://addpromoapi.fastbots.net/available-adverts'
+api_url_get_advert = 'https://addpromoapi.fastbots.net/get-advert'
