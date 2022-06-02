@@ -1,49 +1,70 @@
 start:
   mt: |
-    Hi, paste a link or some data to create QR code:
+    🙋‍♀️ Send me a link or text to generate a QR code
   lang: |
     Choose your language (выберите язык):
 
 help: |
   @QRSendBot can:
   
-    1. <b>Create QR codes for links or free text.</b> To do this, simply send the bot a link or text.
+    1. <b>Create QR codes for links or arbitrary text.</b> To do this, simply send a link or text to the bot.
   
-    2. <b>Recognize data in QR pictures.</b> Just send a picture to the bot and receive data from this code in response.
+    2. <b>Recognize data in QR images.</b> Just send a picture to the bot and receive data from this code in response.
   
   The bot is free, use it to your health!
   
   Suggestions or ideas - @zhuanvong
 
 draw:
+  no_campaigns_mt: |
+    🤷‍♂️ Для этого бота нет заказанных кампаний для рассылки
   mt: |
-    Доступные кампании:
+    💁‍♀️ Доступные кампании:
     {% for campaign_name in campaigns %}
     <b>{{ campaign_name }}:</b>
-      Всего заказанно: {{ campaigns[campaign_name].ordered_count }}
-      Отработано: {{ campaigns[campaign_name].done_count }}
-      Еще осталось: {{ campaigns[campaign_name].ordered_count - campaigns[campaign_name].done_count }}
-    {% endfor %}
-    <b>Всего еще доступно:</b> {{ total }}
-    Напишите start чтобы запустить рассылку!
+      👀 <i>Заказано показов:</i>: {{ campaigns[campaign_name].ordered_count }}
+      💸 <i>Цена 1000 показов:</i>: {{ campaigns[campaign_name].cpm }}р
+      
+      <u>Объявления:</u>
+      {% for advert in campaigns[campaign_name].adverts %}
+        <i>{% if advert.media %}🌠{% endif %}{{ advert.text|escape|truncate(100, True) }}{% for button in advert.buttons %}▶️{% endfor %}</i>
+        <b>Уже {{ advert.done_count }} показов</b>
+      {% endfor %}{% endfor %}
+    
+    💁‍♀️ Напишите start чтобы запустить рассылку!
   start_draw_mt: Рассылка стартовала!
   not_start_draw_mt: Рассылка отменена!
   end_draw_mt: Рассылка закончена!
 
 errors:
-  unknown_command: 👻 Do not know that command
-  none_link_in_message: 👻 There is no url in the message
-  too_big_data: 👻 Can not create QR code, to mane data...
-  not_correct_document: 👻 Can not find QR code at your file
-  cannot_decode_qr: 👻 Can not recognize QR code at the image :-(
+  unknown_command: 👻 I don't know this command.
+  none_link_in_message: 👻 There is no link in the message
+  too_big_data: 👻 Can't generate QR code, too much data...
+  not_correct_document: 👻 I can't find the QR code in your file
+  cannot_decode_qr: 👻 Can't recognize QR code :-(
 
 process:
   with_sign_ib: |
-    {% if is_active %}🔘{% else %}⚪️{% endif %} With sign
+    {% if is_active %}🔘{% else %}⚪️{% endif %} With sign below
   without_sign_ib: |
     {% if is_active %}🔘{% else %}⚪️{% endif %} Without sign
   save_ib: 💾 Save
   final_caption: |
-    {% if url %}🔗 <a href="{{ url }}">Open QR код</a>{% endif %}
+    {% if url %}🔗 <a href="{{ url }}">Open QR</a>{% endif %}
     
-    💁‍♀️ QR code created with @QRSendBot
+    💁‍♀️ Code created with @QRSendBot
+
+rec:
+  wifi: |
+    🌐 Network: <b>{{ net_name }}</b>
+    {% if password %}🔑 Password: <b>{{ password }}</b>{% endif %}
+    {% if encryption %}🔐 Protocol: <b>{{ encryption }}</b>{% endif %}
+  tel: |
+    ☎️ Number: <b>{{ tel }}</b>
+  geo: |
+    🛰 Coordinates:
+    
+    latitude: <b>{{ latitude }}</b>
+    longitude: <b>{{ longitude }}</b>
+  vcard: |
+    
